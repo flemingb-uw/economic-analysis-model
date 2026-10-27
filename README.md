@@ -52,7 +52,7 @@ Use `git add` selectively if you do not want to commit the large Excel/PDF files
 1. Repo is on GitHub: **`DhruvaPyapali/economic-analysis-model`**.
 2. Sign in at Streamlit Community Cloud and **New app** → pick **`economic-analysis-model`**.
 3. Set **Main file path** to `app.py`.
-4. Deploy; Streamlit assigns your app URL (this project: [live app](https://economic-analysis-model-n66hlcdqzg2vxhjwnrdnqr.streamlit.app/)).
+4. Deploy; Streamlit assigns your app URL (this project: [live app](https://economic-analysis-model-5v8nkb6hnu8ltdg3u6ifey.streamlit.app)).
 
 The GitHub Pages URL redirects to the same Streamlit URL.
 
