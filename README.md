@@ -2,7 +2,7 @@
 
 Interactive **Streamlit** port of the Excel workbook’s **Simple** analysis: scenario-weighted projections, combined revenue build-up, NPV-style metrics, and heuristic multiples. Core logic lives in `economics_model.py`; the UI is `app.py`.
 
-**Live app (Streamlit):** [https://economic-analysis-model-n66hlcdqzg2vxhjwnrdnqr.streamlit.app/](https://economic-analysis-model-n66hlcdqzg2vxhjwnrdnqr.streamlit.app/)
+**Live app (Streamlit):** [https://economic-analysis-model-5v8nkb6hnu8ltdg3u6ifey.streamlit.app)
 
 ## Run locally
 
