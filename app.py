@@ -266,7 +266,7 @@ with col_a:
         help="Direct costs of producing goods or services. Gross profit = Revenue − COGS.",
     )
     ae = st.number_input(
-        "EBITDA", key="ae", min_value=0.0, value=25.0, step=0.01, format="%.2f",
+        "EBITDA", key="ae", value=25.0, step=0.01, format="%.2f",
         help=(
             "Earnings Before Interest, Tax, Depreciation & Amortization. "
             "Measures operating income while negating aggressive accounting policies. "
@@ -322,7 +322,7 @@ with col_t:
         help="Direct costs of producing goods or services. Gross profit = Revenue − COGS.",
     )
     te = st.number_input(
-        "EBITDA", key="te", min_value=0.0, value=12.0, step=0.01, format="%.2f",
+        "EBITDA", key="te", value=12.0, step=0.01, format="%.2f",
         help=(
             "Earnings Before Interest, Tax, Depreciation & Amortization. "
             "Measures operating income while negating aggressive accounting policies. "
