@@ -103,3 +103,27 @@ def test_zero_input_case_stays_finite_or_nan_only_for_yoy():
     assert res.price_peg == pytest.approx(0.0)
     assert res.price_ps == pytest.approx(0.0)
     assert math.isnan(res.yoy_revenue_growth[1])
+
+
+def test_revenue_npv_matches_manual_and_follows_horizon():
+    from economics_model import excel_npv
+
+    inp = SimpleModelInputs(
+        risk_free_rate=0.05,
+        acquirer_revenue=100, acquirer_cogs=40, acquirer_ebitda=25, acquirer_hist_revenue_growth=0.03,
+        target_revenue=50, target_cogs=20, target_ebitda=12, target_hist_revenue_growth=0.04,
+    )
+    r10 = run_simple_model(inp)
+    r3 = run_simple_model(inp, horizon_years=3)
+    assert r10.npv_gross_revenue == pytest.approx(excel_npv(0.05, list(r10.target.gross_sales[1:11])))
+    assert r3.npv_gross_revenue == pytest.approx(excel_npv(0.05, list(r3.target.gross_sales[1:4])))
+    assert r3.npv_gross_revenue < r10.npv_gross_revenue
+    assert r3.npv_gross_profit_10y < r10.npv_gross_profit_10y
+    assert r10.horizon_years == 10 and r3.horizon_years == 3
+
+
+def test_results_jpeg_is_valid():
+    from export_image import build_results_jpeg
+
+    data = build_results_jpeg([("a", "1")], [("b", "2")], [0, 1, 2], [1, 2, 3], [1, 1, 2])
+    assert data[:3] == b"\xff\xd8\xff"
