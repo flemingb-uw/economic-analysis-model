@@ -33,6 +33,8 @@ except ImportError as _import_err:
     st.exception(_import_err)
     st.stop()
 
+from export_image import build_results_jpeg
+
 # Friendly labels → workbook growth-method values
 GROWTH_MODE_LABELS: dict[str, str] = {
     "Discrete — weighted cash flows": DISCRETE_GROWTH_METHOD,
@@ -165,13 +167,13 @@ with st.sidebar:
                 "Remember that growth can be negative in a pessimistic scenario."
             ),
         )
-        p_pess_pct = st.slider(
-            "Pessimistic scenario weight",
-            0.0,
-            100.0,
-            0.0,
-            0.1,
-            format="%.1f%%",
+        p_pess_pct = st.number_input(
+            "Pessimistic scenario weight (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            step=0.1,
+            format="%.1f",
             key="p_pess_pct",
             help=(
                 "Probability of the pessimistic scenario. Growth can be negative here. "
@@ -181,14 +183,14 @@ with st.sidebar:
         sq = max(0.0, 100.0 - p_opt_pct - p_pess_pct)
         st.caption(f"Base case weight: **{sq:.1f}%** (remainder).")
     else:
-        p_opt_pct = st.slider(
-            "Discount rate premium (optimistic)",
-            0.0,
-            100.0,
-            0.0,
-            0.1,
-            format="%.1f%%",
-            key="p_opt_pct",
+        p_opt_pct = st.number_input(
+            "Discount rate premium (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            step=0.1,
+            format="%.2f",
+            key="p_opt_pct_cont",
             help=(
                 "Risk premium added to the risk-free rate to form the discount rate (Continuous mode). "
                 "While there is no single preferred method to calculate this, the premium should reflect the "
@@ -395,9 +397,22 @@ inp = SimpleModelInputs(
 if discrete_mode and p_opt + p_pess > 1.0:
     st.stop()
 
-res = run_simple_model(inp)
+display_years = st.selectbox(
+    "Years (projection horizon)",
+    list(range(1, 11)),
+    index=9,
+    key="display_years",
+    help=(
+        "Number of projection years used for the NPVs, chart and table (year 0 is always shown). "
+        "Per the user manual, only use a time horizon where you are comfortable with your estimates — "
+        "if reliable estimates can only be made for five years, a horizon of ten would be inappropriate."
+    ),
+)
 
-mcol1, mcol2, mcol3, mcol4 = st.columns(4)
+res = run_simple_model(inp, horizon_years=display_years)
+
+mcol1, mcol2, mcol3 = st.columns(3)
+mcol4, mcol5, _ = st.columns(3)
 mcol1.metric(
     "Discount rate",
     f"{res.discount_rate:.2%}",
@@ -409,14 +424,22 @@ mcol1.metric(
     ),
 )
 mcol2.metric(
-    "NPV — 10y target gross profit",
+    f"NPV — {display_years}y target gross profit",
     _format_money(res.npv_gross_profit_10y, currency_key),
     help=(
-        "Net Present Value of the target's projected gross profit over years 1–10, "
+        f"Net Present Value of the target's projected gross profit over years 1–{display_years}, "
         "discounted at the current discount rate. This is the core DCF valuation output."
     ),
 )
 mcol3.metric(
+    f"NPV — {display_years}y target gross revenue",
+    _format_money(res.npv_gross_revenue, currency_key),
+    help=(
+        f"Net Present Value of the target's projected gross revenue (sales) over years 1–{display_years}, "
+        "discounted at the current discount rate."
+    ),
+)
+mcol4.metric(
     "NPV — terminal-style",
     _format_money(res.valuation_terminal_style, currency_key),
     help=(
@@ -426,7 +449,7 @@ mcol3.metric(
     ),
 )
 _g2 = res.yoy_revenue_growth[2]
-mcol4.metric(
+mcol5.metric(
     "Combined sales growth (yr 2)",
     f"{_g2:.1%}" if res.combined_gross_sales[1] > 0 and pd.notna(_g2) else "—",
     help=(
@@ -486,19 +509,6 @@ st.caption(
     "**Discount** and **multiples** only change the KPIs and price heuristics above—not these lines."
 )
 
-display_years = st.slider(
-    "Years to display",
-    min_value=1,
-    max_value=10,
-    value=10,
-    step=1,
-    key="display_years",
-    help=(
-        "Choose how many projection years to show in the chart and table (year 0 is always shown). "
-        "Per the user manual, only use a time horizon where you are comfortable with your estimates — "
-        "if reliable estimates can only be made for five years, a horizon of ten would be inappropriate."
-    ),
-)
 _display_idx = display_years + 1  # include year 0
 
 years_disp = years[:_display_idx]
@@ -516,6 +526,35 @@ fig.update_layout(
     xaxis_title="Year",
 )
 st.plotly_chart(fig, use_container_width=True, key=f"forecast_{_chart_fingerprint & 0xFFFFFFFFFFFFFFFF}_{display_years}")
+
+try:
+    _jpeg = build_results_jpeg(
+        kpis=[
+            ("Discount rate", f"{res.discount_rate:.2%}"),
+            (f"NPV - {display_years}y target gross profit", _format_money(res.npv_gross_profit_10y, currency_key)),
+            (f"NPV - {display_years}y target gross revenue", _format_money(res.npv_gross_revenue, currency_key)),
+            ("NPV - terminal-style", _format_money(res.valuation_terminal_style, currency_key)),
+        ],
+        heuristics=[
+            ("Gross-profit multiple", _format_money(res.price_pe, currency_key)),
+            ("PEG-style", _format_money(res.price_peg, currency_key)),
+            ("Sales multiple", _format_money(res.price_ps, currency_key)),
+        ],
+        years=years_disp,
+        sales=sales_disp,
+        profit=profit_disp,
+        title=f"Economic Analysis - Results ({display_years}-year horizon)",
+        y_label=currency_key.split(" — ")[0] if currency_meta["symbol"] else "Amount",
+    )
+    st.download_button(
+        "Download results (JPEG)",
+        data=_jpeg,
+        file_name="economic_analysis_results.jpg",
+        mime="image/jpeg",
+        key="download_jpeg",
+    )
+except Exception as _e:  # keep the app usable if image export fails
+    st.warning(f"JPEG export unavailable: {_e}")
 
 st.subheader("Year-by-year table")
 disp = df.iloc[:_display_idx].copy()

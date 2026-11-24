@@ -102,7 +102,9 @@ class SimpleModelResult:
     combined_gross_margin: np.ndarray
     yoy_revenue_growth: np.ndarray
     discount_rate: float
-    npv_gross_profit_10y: float
+    npv_gross_profit_10y: float  # NPV over the chosen horizon (name kept for compatibility)
+    npv_gross_revenue: float
+    horizon_years: int
     valuation_npv_simple: float
     valuation_terminal_style: float
     price_pe: float
@@ -187,7 +189,9 @@ def _entity_projection(
     )
 
 
-def run_simple_model(inp: SimpleModelInputs) -> SimpleModelResult:
+def run_simple_model(inp: SimpleModelInputs, horizon_years: int | None = None) -> SimpleModelResult:
+    h = int(horizon_years if horizon_years is not None else inp.time_horizon_years)
+    h = min(max(h, 1), 10)
     if inp.acquirer_revenue == 0:
         base_gm_a = 0.0
         base_em_a = 0.0
@@ -257,12 +261,13 @@ def run_simple_model(inp: SimpleModelInputs) -> SimpleModelResult:
 
     d = _discount_rate(inp)
     tgt_gp = target.gross_profit
-    cf_1_10 = [float(x) for x in tgt_gp[1:11]]
-    npv_gp = excel_npv(d, cf_1_10)
+    cf_h = [float(x) for x in tgt_gp[1 : h + 1]]
+    npv_gp = excel_npv(d, cf_h)
+    npv_rev = excel_npv(d, [float(x) for x in target.gross_sales[1 : h + 1]])
     val_simple = npv_gp
 
     # Workbook B25 points at Target-Complex; here we keep structure but use Simple target path.
-    cf_term = [float(x) for x in tgt_gp[1:10]] + [float(tgt_gp[10]) + val_simple]
+    cf_term = [float(x) for x in tgt_gp[1:h]] + [float(tgt_gp[h]) + val_simple]
     val_terminal = excel_npv(d, cf_term)
 
     t_gp0 = float(target.gross_profit[0])
@@ -280,6 +285,8 @@ def run_simple_model(inp: SimpleModelInputs) -> SimpleModelResult:
         yoy_revenue_growth=yoy,
         discount_rate=d,
         npv_gross_profit_10y=npv_gp,
+        npv_gross_revenue=npv_rev,
+        horizon_years=h,
         valuation_npv_simple=val_simple,
         valuation_terminal_style=val_terminal,
         price_pe=price_pe,
